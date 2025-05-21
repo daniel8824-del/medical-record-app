@@ -30,4 +30,5 @@ build/
 
 # OS generated files
 .DS_Store
-Thumbs.db 
+Thumbs.db
+medical_record_app_bak.py

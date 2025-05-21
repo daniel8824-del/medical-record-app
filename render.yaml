@@ -1,0 +1,16 @@
+services:
+  # 의료 기록 해석기 웹 서비스
+  - type: web
+    name: medical-record-app
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run medical_record_app.py --server.port=10000 --server.address=0.0.0.0
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: UPSTAGE_API_KEY
+        sync: false
+      - key: DUR_API_KEY
+        sync: false
+      - key: DUR_API_BASE_URL
+        sync: false 
