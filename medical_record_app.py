@@ -30,10 +30,12 @@ except AttributeError: pass
 
 # API 설정 통합
 API_CONFIG = {
-    "OPENAI_API_KEY": os.environ.get("OPENAI_API_KEY", ""),
-    "UPSTAGE_API_KEY": os.environ.get("UPSTAGE_API_KEY", ""),
-    "DUR_API_KEY": os.environ.get("DUR_API_KEY", ""),
-    "DUR_API_BASE_URL": os.environ.get("DUR_API_BASE_URL", "")}
+    # 환경 변수 또는 Streamlit Secrets에서 API 키 로드
+    "OPENAI_API_KEY": st.secrets.get("api_keys", {}).get("OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY", "")),
+    "UPSTAGE_API_KEY": st.secrets.get("api_keys", {}).get("UPSTAGE_API_KEY", os.environ.get("UPSTAGE_API_KEY", "")),
+    "DUR_API_KEY": st.secrets.get("api_keys", {}).get("DUR_API_KEY", os.environ.get("DUR_API_KEY", "")),
+    "DUR_API_BASE_URL": st.secrets.get("api_keys", {}).get("DUR_API_BASE_URL", os.environ.get("DUR_API_BASE_URL", "http://apis.data.go.kr/1471000/DURPrdlstInfoService03")),
+}
 
 # API 키 설정
 def get_api_keys(): return API_CONFIG
