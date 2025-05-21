@@ -17,7 +17,7 @@
 
 1. 저장소 클론
 ```bash
-git clone https://github.com/your-username/medical-record-app.git
+git clone https://github.com/daniel8824-del/medical-record-app.git
 cd medical-record-app
 ```
 
@@ -46,24 +46,26 @@ DUR_API_BASE_URL=http://apis.data.go.kr/1471000/DURPrdlstInfoService03
 streamlit run medical_record_app.py
 ```
 
-## Render에 배포하기
+## Streamlit Cloud에 배포하기
 
-1. [Render](https://render.com/)에 가입하고 로그인합니다.
-2. 'New Web Service' 버튼을 클릭합니다.
+1. [Streamlit Cloud](https://share.streamlit.io/)에 접속하고 GitHub 계정으로 로그인합니다.
+2. 'New app' 버튼을 클릭합니다.
 3. GitHub 저장소를 연결합니다.
 4. 다음 설정을 구성합니다:
-   - **Name**: medical-record-app (또는 원하는 이름)
-   - **Environment**: Python
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `streamlit run medical_record_app.py --server.port=10000 --server.address=0.0.0.0`
-5. 'Advanced' 섹션에서 환경 변수를 추가합니다:
-   - OPENAI_API_KEY
-   - UPSTAGE_API_KEY
-   - DUR_API_KEY
-   - DUR_API_BASE_URL
-6. 'Create Web Service'를 클릭하여 배포를 시작합니다.
+   - **Repository**: daniel8824-del/medical-record-app
+   - **Branch**: master
+   - **Main file path**: medical_record_app.py
+5. 'Advanced Settings'를 열고 'Secrets' 섹션에 API 키를 추가합니다:
+   ```
+   [api_keys]
+   OPENAI_API_KEY = "실제_API_키_값"
+   UPSTAGE_API_KEY = "실제_API_키_값" 
+   DUR_API_KEY = "실제_API_키_값"
+   DUR_API_BASE_URL = "http://apis.data.go.kr/1471000/DURPrdlstInfoService03"
+   ```
+6. 'Deploy!' 버튼을 클릭하여 배포를 시작합니다.
 
-배포가 완료되면 제공된 URL을 통해 애플리케이션에 접근할 수 있습니다.
+배포가 완료되면 Streamlit Cloud에서 제공하는 URL을 통해 애플리케이션에 접근할 수 있습니다.
 
 ## 기술 스택
 
