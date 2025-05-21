@@ -255,15 +255,15 @@ def extract_medications(text):
         
         # 패턴 5: 괄호 안의 코드 + 약품명 (예: (65730340)크로미나정625mg)
         for match in re.finditer(pattern5, med_section):
-            med_name = match.group(2).strip()
-            
-            # 기본적인 정제 - 용량 정보 제거
-            med_name = re.sub(r'\d+mg|\d+\.\d+mg', '', med_name)
-            
-            if med_name and len(med_name) > 1:
-                # "사유코드" 같은 텍스트는 약품명에서 제외
-                if not any(keyword in med_name for keyword in ["사유코드", "코드"]):
-                    medications.add(("BRACKET", med_name))
+                med_name = match.group(2).strip()
+                
+                # 기본적인 정제 - 용량 정보 제거
+                med_name = re.sub(r'\d+mg|\d+\.\d+mg', '', med_name)
+                
+                if med_name and len(med_name) > 1:
+                    # "사유코드" 같은 텍스트는 약품명에서 제외
+                    if not any(keyword in med_name for keyword in ["사유코드", "코드"]):
+                        medications.add(("BRACKET", med_name))
         
         # 패턴 6: 줄 시작에 있는 약품명
         for line in med_section.split('\n'):
@@ -275,7 +275,7 @@ def extract_medications(text):
                 med_name = re.sub(r'\d+mg|\d+\.\d+mg', '', med_name)
                 
                 if med_name and len(med_name) > 1:
-                    # "사유코드" 같은 텍스트는 약품명에서 제외
+                # "사유코드" 같은 텍스트는 약품명에서 제외
                     if not any(keyword in med_name for keyword in ["사유코드", "코드"]):
                         medications.add(("LINE", med_name))
         
@@ -457,7 +457,7 @@ def analyze_medical_record(text, medication_list=None, medication_codes=None):
         # 분석 결과에서 약품명 데이터를 저장할 리스트
         extracted_drugs = []
         
-        # 약품 정보가 있는 경우
+                    # 약품 정보가 있는 경우
         if medication_list:
             # 공백 제거 및 약품명 정제
             cleaned_medication_list = []
@@ -1027,7 +1027,7 @@ def main():
             with st.spinner("처방전 내용을 분석하고 있습니다..."):
                 # OCR 결과 캐싱
                 if st.session_state.ocr_result is None:
-                    # 텍스트 추출
+                # 텍스트 추출
                     extracted_text = extract_text_from_image(image)
                     st.session_state.ocr_result = extracted_text
                 else:
@@ -1165,7 +1165,7 @@ def main():
                             table_html += "</table>"
                             
                             st.markdown(table_html, unsafe_allow_html=True)
-                        
+                            
                         # 분석 결과 표시
                         if analysis:
                             # 섹션 제목 패턴 (더 유연하게)
@@ -1299,10 +1299,10 @@ def main():
                             if st.button("🔊 음성으로 듣기"):
                                 with st.spinner("음성으로 변환 중..."):
                                     audio_base64 = text_to_speech(analysis)
-                                    if audio_base64:
-                                        st.audio(f"data:audio/mp3;base64,{audio_base64}")
-                                        st.info("🔊 위 재생 버튼을 누르시면 설명을 들으실 수 있습니다.")
-                        
+                                if audio_base64:
+                                    st.audio(f"data:audio/mp3;base64,{audio_base64}")
+                                    st.info("🔊 위 재생 버튼을 누르시면 설명을 들으실 수 있습니다.")
+
                         with col2:
                             # QR 코드로 공유 버튼 (미구현)
                             if st.button("📱 QR코드로 공유하기"):
@@ -1314,10 +1314,10 @@ def main():
                             phone_number = st.text_input("보호자 전화번호 (예: 01012345678)")
                             reminder_times = st.multiselect(
                                 "복약 알림을 받을 시간을 선택해주세요",
-                                    ["아침 식사 전", "아침 식사 후", "점심 식사 전", "점심 식사 후", 
-                                    "저녁 식사 전", "저녁 식사 후", "취침 전"],
-                                    default=["아침 식사 후", "저녁 식사 후"]
-                                )
+                                ["아침 식사 전", "아침 식사 후", "점심 식사 전", "점심 식사 후", 
+                                 "저녁 식사 전", "저녁 식사 후", "취침 전"],
+                                default=["아침 식사 후", "저녁 식사 후"]
+                            )
                             
                             if st.form_submit_button("설명 내용 문자로 보내기"):
                                 if len(phone_number) == 11 and phone_number.isdigit():
@@ -1332,4 +1332,4 @@ def main():
                                     st.error("올바른 전화번호 형식이 아닙니다. 숫자 11자리를 입력해주세요.")
 
 if __name__ == "__main__":
-    main()
+    main() 
