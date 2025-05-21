@@ -48,19 +48,22 @@ API_CONFIG = {
 def get_api_keys(): return API_CONFIG
 API_KEYS = get_api_keys()
 
-# OpenAI 클라이언트 초기화 - 버전에 따라 다르게 처리
+# OpenAI 클라이언트 초기화 - 모든 proxy 관련 인자 제거
 client = None
 if API_KEYS["OPENAI_API_KEY"]:
     try:
         if USING_NEW_OPENAI:
             # 새 버전 OpenAI 클라이언트 초기화 (1.0.0+)
+            # API 키만 전달하고 다른 인자는 전달하지 않음
             client = OpenAI(api_key=API_KEYS["OPENAI_API_KEY"])
         else:
             # 구 버전 OpenAI 클라이언트 초기화 (0.28.x)
+            # 글로벌 API 키 설정만 하고 다른 설정은 하지 않음
             openai.api_key = API_KEYS["OPENAI_API_KEY"]
             client = openai
     except Exception as e:
         st.error(f"OpenAI 클라이언트 초기화 중 오류 발생: {str(e)}")
+        st.info("참고: OpenAI v1.x에서는 proxy 설정이 필요한 경우 환경 변수(HTTP_PROXY, HTTPS_PROXY)를 사용하세요.")
 
 # DUR API 엔드포인트 설정
 DUR_ENDPOINTS = {
@@ -525,6 +528,7 @@ def analyze_medical_record(text, medication_list=None, medication_codes=None):
                     chatgpt_drug_info = drug_info_completion.choices[0].message.content
                 else:
                     # 구 버전 OpenAI API (0.28.x)
+                    # 모든 추가 인자 제거, 기본 필수 인자만 사용
                     drug_info_completion = openai.ChatCompletion.create(
                         model="gpt-4o",
                         messages=[
@@ -737,6 +741,7 @@ def analyze_medical_record(text, medication_list=None, medication_codes=None):
             analysis = completion.choices[0].message.content
         else:
             # 구 버전 OpenAI API (0.28.x)
+            # 모든 추가 인자 제거, 기본 필수 인자만 사용
             completion = openai.ChatCompletion.create(
                 model="gpt-4o",
                 messages=[
