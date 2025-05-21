@@ -8,7 +8,6 @@ st.set_page_config(
 
 import os
 from PIL import Image
-from openai import OpenAI
 import json
 import requests
 from datetime import datetime
@@ -20,6 +19,14 @@ from unicodedata import normalize
 import io
 import ssl
 from urllib3.exceptions import InsecureRequestWarning
+
+# 버전에 따라 OpenAI 임포트 방식 변경
+try:
+    from openai import OpenAI
+    USING_NEW_OPENAI = True
+except ImportError:
+    import openai
+    USING_NEW_OPENAI = False
 
 # SSL 경고 메시지 억제
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -41,11 +48,19 @@ API_CONFIG = {
 def get_api_keys(): return API_CONFIG
 API_KEYS = get_api_keys()
 
-# OpenAI 클라이언트 초기화
+# OpenAI 클라이언트 초기화 - 버전에 따라 다르게 처리
 client = None
 if API_KEYS["OPENAI_API_KEY"]:
-    try: client = OpenAI(api_key=API_KEYS["OPENAI_API_KEY"])
-    except Exception as e: st.error(f"OpenAI 클라이언트 초기화 중 오류 발생: {str(e)}")
+    try:
+        if USING_NEW_OPENAI:
+            # 새 버전 OpenAI 클라이언트 초기화 (1.0.0+)
+            client = OpenAI(api_key=API_KEYS["OPENAI_API_KEY"])
+        else:
+            # 구 버전 OpenAI 클라이언트 초기화 (0.28.x)
+            openai.api_key = API_KEYS["OPENAI_API_KEY"]
+            client = openai
+    except Exception as e:
+        st.error(f"OpenAI 클라이언트 초기화 중 오류 발생: {str(e)}")
 
 # DUR API 엔드포인트 설정
 DUR_ENDPOINTS = {
@@ -491,22 +506,39 @@ def analyze_medical_record(text, medication_list=None, medication_codes=None):
                 각 약품에 대해 2-3문장 이내로 간결하게 설명해주세요.
                 """
                 
-                # ChatGPT 호출
-                drug_info_completion = client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=[
-                        {
-                            "role": "system", 
-                            "content": "당신은 전문 약사입니다. 약품 정보에 대해 정확하고 이해하기 쉬운 정보를 제공합니다."
-                        },
-                        {"role": "user", "content": drug_info_request}
-                    ],
-                    temperature=0.3,
-                    max_tokens=800
-                )
-                
-                # ChatGPT 응답 저장
-                chatgpt_drug_info = drug_info_completion.choices[0].message.content
+                # ChatGPT 호출 - 버전에 따라 다르게 처리
+                if USING_NEW_OPENAI:
+                    # 새 버전 OpenAI API (1.x)
+                    drug_info_completion = client.chat.completions.create(
+                        model="gpt-4o",
+                        messages=[
+                            {
+                                "role": "system", 
+                                "content": "당신은 전문 약사입니다. 약품 정보에 대해 정확하고 이해하기 쉬운 정보를 제공합니다."
+                            },
+                            {"role": "user", "content": drug_info_request}
+                        ],
+                        temperature=0.3,
+                        max_tokens=800
+                    )
+                    # 새 버전 응답 처리
+                    chatgpt_drug_info = drug_info_completion.choices[0].message.content
+                else:
+                    # 구 버전 OpenAI API (0.28.x)
+                    drug_info_completion = openai.ChatCompletion.create(
+                        model="gpt-4o",
+                        messages=[
+                            {
+                                "role": "system", 
+                                "content": "당신은 전문 약사입니다. 약품 정보에 대해 정확하고 이해하기 쉬운 정보를 제공합니다."
+                            },
+                            {"role": "user", "content": drug_info_request}
+                        ],
+                        temperature=0.3,
+                        max_tokens=800
+                    )
+                    # 구 버전 응답 처리
+                    chatgpt_drug_info = drug_info_completion.choices[0].message.content
                 
                 # 약품명 추출 (번호. 약품명 패턴) - 더 정확한 패턴으로 수정
                 # 1. 볼드 처리된 약품명 추출 (1. **약품명**)
@@ -670,37 +702,71 @@ def analyze_medical_record(text, medication_list=None, medication_codes=None):
             f"처방전 내용: {text}"
         )
         
-        # 최종 분석
-        completion = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {
-                    "role": "system", 
-                    "content": (
-                        "당신은 친절한 주치의입니다. 이것은 환자를 위한 처방전 분석입니다. "
-                        "의학용어 대신 쉬운 말을 사용하고, 환자가 이해하기 쉽게 설명해주세요. "
-                        "일상생활에서 실천할 수 있는 구체적인 예시를 포함해주세요. "
-                        "응답은 반드시 다음 세 섹션으로 구분하여 작성해주세요:\n"
-                        "1. [처방약 설명]\n"
-                        "- 각 약품별로 번호를 매기고, 효능, 복용방법, 주의사항을 항목별로 구분하세요.\n"
-                        "- 약품명과 항목명(효능은?, 복용방법은?, 주의사항은?)은 반드시 굵게(**볼드**) 처리하세요.\n"
-                        "- 예: 1. **약품명**\n• **효능은?** (설명)\n• **복용방법은?** (설명)\n• **주의사항은?** (설명)\n\n"
-                        "2. [생활 속 주의사항]\n"
-                        "- 항목별로 구분하되, 각 항목은 '• 항목: 내용' 형식으로 작성하고 줄바꿈으로 구분하세요.\n"
-                        "- 예: • 식사: (내용)\n• 운동: (내용)\n• 수면: (내용)\n"
-                        "3. [약 복용 시 주의사항]\n"
-                        "- 항목별로 구분하되, 각 항목은 '• 항목: 내용' 형식으로 작성하고 줄바꿈으로 구분하세요.\n"
-                        "- 예: • 복용 시간: (내용)\n• 복용 방법: (내용)\n• 보관법: (내용)\n• 부작용 관리: (내용)\n"
-                        "각 섹션을 명확히 '[섹션명]' 형식으로 표시하고, 섹션을 건너뛰지 마세요."
-                    )
-                },
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7,
-            max_tokens=2500
-        )
-        
-        analysis = completion.choices[0].message.content
+        # 최종 분석 - 버전에 따라 다르게 처리
+        if USING_NEW_OPENAI:
+            # 새 버전 OpenAI API (1.x)
+            completion = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {
+                        "role": "system", 
+                        "content": (
+                            "당신은 친절한 주치의입니다. 이것은 환자를 위한 처방전 분석입니다. "
+                            "의학용어 대신 쉬운 말을 사용하고, 환자가 이해하기 쉽게 설명해주세요. "
+                            "일상생활에서 실천할 수 있는 구체적인 예시를 포함해주세요. "
+                            "응답은 반드시 다음 세 섹션으로 구분하여 작성해주세요:\n"
+                            "1. [처방약 설명]\n"
+                            "- 각 약품별로 번호를 매기고, 효능, 복용방법, 주의사항을 항목별로 구분하세요.\n"
+                            "- 약품명과 항목명(효능은?, 복용방법은?, 주의사항은?)은 반드시 굵게(**볼드**) 처리하세요.\n"
+                            "- 예: 1. **약품명**\n• **효능은?** (설명)\n• **복용방법은?** (설명)\n• **주의사항은?** (설명)\n\n"
+                            "2. [생활 속 주의사항]\n"
+                            "- 항목별로 구분하되, 각 항목은 '• 항목: 내용' 형식으로 작성하고 줄바꿈으로 구분하세요.\n"
+                            "- 예: • 식사: (내용)\n• 운동: (내용)\n• 수면: (내용)\n"
+                            "3. [약 복용 시 주의사항]\n"
+                            "- 항목별로 구분하되, 각 항목은 '• 항목: 내용' 형식으로 작성하고 줄바꿈으로 구분하세요.\n"
+                            "- 예: • 복용 시간: (내용)\n• 복용 방법: (내용)\n• 보관법: (내용)\n• 부작용 관리: (내용)\n"
+                            "각 섹션을 명확히 '[섹션명]' 형식으로 표시하고, 섹션을 건너뛰지 마세요."
+                        )
+                    },
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                max_tokens=2500
+            )
+            # 새 버전 응답 처리
+            analysis = completion.choices[0].message.content
+        else:
+            # 구 버전 OpenAI API (0.28.x)
+            completion = openai.ChatCompletion.create(
+                model="gpt-4o",
+                messages=[
+                    {
+                        "role": "system", 
+                        "content": (
+                            "당신은 친절한 주치의입니다. 이것은 환자를 위한 처방전 분석입니다. "
+                            "의학용어 대신 쉬운 말을 사용하고, 환자가 이해하기 쉽게 설명해주세요. "
+                            "일상생활에서 실천할 수 있는 구체적인 예시를 포함해주세요. "
+                            "응답은 반드시 다음 세 섹션으로 구분하여 작성해주세요:\n"
+                            "1. [처방약 설명]\n"
+                            "- 각 약품별로 번호를 매기고, 효능, 복용방법, 주의사항을 항목별로 구분하세요.\n"
+                            "- 약품명과 항목명(효능은?, 복용방법은?, 주의사항은?)은 반드시 굵게(**볼드**) 처리하세요.\n"
+                            "- 예: 1. **약품명**\n• **효능은?** (설명)\n• **복용방법은?** (설명)\n• **주의사항은?** (설명)\n\n"
+                            "2. [생활 속 주의사항]\n"
+                            "- 항목별로 구분하되, 각 항목은 '• 항목: 내용' 형식으로 작성하고 줄바꿈으로 구분하세요.\n"
+                            "- 예: • 식사: (내용)\n• 운동: (내용)\n• 수면: (내용)\n"
+                            "3. [약 복용 시 주의사항]\n"
+                            "- 항목별로 구분하되, 각 항목은 '• 항목: 내용' 형식으로 작성하고 줄바꿈으로 구분하세요.\n"
+                            "- 예: • 복용 시간: (내용)\n• 복용 방법: (내용)\n• 보관법: (내용)\n• 부작용 관리: (내용)\n"
+                            "각 섹션을 명확히 '[섹션명]' 형식으로 표시하고, 섹션을 건너뛰지 마세요."
+                        )
+                    },
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                max_tokens=2500
+            )
+            # 구 버전 응답 처리
+            analysis = completion.choices[0].message.content
         
         # DUR API와 ChatGPT 통합 디버깅을 위한 정보 추가
         if drug_info_prompt:
